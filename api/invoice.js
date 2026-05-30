@@ -3,7 +3,7 @@ const { checkInitData, tg } = require("../lib/telegram");
 const { db } = require("../lib/db");
 
 // Цены в звёздах. Должны совпадать с таблицей decks в БД.
-const PRICES = { unlock_interpretation: 25 };
+const PRICES = { unlock_interpretation: 10 };
 const DECK_PRICES = { celestial: 25, golden: 25, noir: 50, botanica: 50, royal: 100 };
 
 module.exports = async (req, res) => {
