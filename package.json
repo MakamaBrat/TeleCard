@@ -1,0 +1,9 @@
+{
+  "name": "telecard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TeleCard — Telegram Mini App (tarot) on Vercel: serverless API + webhook bot + Stars",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}

@@ -351,10 +351,11 @@
 
 <script>
 /* ====================================================================
-   КОНФИГ. Пусто = ДЕМО-режим (всё работает локально, без сервера).
-   После деплоя бэкенда впиши адрес сюда: */
-window.API_BASE = ""; // напр. "https://my-tarot-bot.up.railway.app"
-window.BOT_USERNAME = "your_bot"; // username бота без @ — для ссылок-приглашений
+   КОНФИГ.
+   API_BASE = "" — бэкенд на том же домене Vercel (вызовы идут на /api/...).
+   ДЕМО-режим включается автоматически, когда приложение открыто НЕ в Telegram. */
+window.API_BASE = ""; // оставь пустым для Vercel; либо полный адрес чужого бэкенда
+window.BOT_USERNAME = "telecard_bot"; // username бота без @ — для ссылок-приглашений
 // Публичный адрес хранилища колод (Supabase Storage). Картинки лежат как <DECKS_BASE>/<deckId>/<номер>.png
 window.DECKS_BASE = ""; // напр. "https://xxxx.supabase.co/storage/v1/object/public/decks"
 /* ==================================================================== */
@@ -529,6 +530,7 @@ let lang = "uk";
 let spreadSize = 5;
 let currentSpread = [];
 const isTG = !!(window.Telegram && Telegram.WebApp && Telegram.WebApp.initData);
+const DEMO = !isTG; // вне Telegram = демо-режим (без бэкенда)
 let state = {
   coins: 50, stars: 0, readings: 0,
   interpretUnlocked: false,
@@ -541,9 +543,9 @@ const $ = s => document.querySelector(s);
 const t = k => (I18N[lang][k] ?? k);
 function toast(msg){const el=$("#toast");el.textContent=msg;el.classList.add("show");clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove("show"),2200);}
 function api(path,body){
-  if(!window.API_BASE) return Promise.reject("demo");
-  return fetch(window.API_BASE+path,{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({initData:(isTG?Telegram.WebApp.initData:""),...body})}).then(r=>r.json());
+  if(DEMO) return Promise.reject("demo");
+  return fetch((window.API_BASE||"")+path,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({initData:Telegram.WebApp.initData,...body})}).then(r=>r.json());
 }
 
 /* ---------- INIT ---------- */
@@ -727,7 +729,7 @@ function buyDeck(id){
 
 /* Универсальная покупка через Stars. В демо — мгновенно. В TG — через инвойс бэкенда. */
 function buyStars(item, onSuccess, priceOverride){
-  if(!window.API_BASE){ // ДЕМО — без оплаты
+  if(DEMO){ // вне Telegram — без оплаты
     onSuccess(); return;
   }
   api("/api/invoice",{item}).then(d=>{
