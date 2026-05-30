@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>TeleCard</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  /* ============ CONFIG ============ */
+  /* Если API_BASE пустой — приложение работает в ДЕМО-режиме (без бэкенда).
+     После деплоя бэкенда впиши сюда его адрес, например https://my-bot.up.railway.app */
+  /* настраивается ниже в блоке CONFIG через window.API_BASE */
+
+  :root{
+    --bg:#0a0712;
+    --bg-2:#140d22;
+    --panel:#1b1230;
+    --panel-2:#241638;
+    --gold:#d9b25b;
+    --gold-bright:#f3d488;
+    --gold-dim:#8a6f37;
+    --ink:#ece3d0;
+    --ink-dim:#9a8fae;
+    --line:rgba(217,178,91,.22);
+    --violet:#7b5cff;
+    --rose:#c46b8a;
+    --ok:#5bd99a;
+    --r:18px;
+    --shadow:0 18px 50px -12px rgba(0,0,0,.7);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:'Cormorant Garamond',Georgia,serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 700px at 50% -10%, #261a3f 0%, transparent 60%),
+      radial-gradient(900px 600px at 90% 110%, #1d2440 0%, transparent 55%),
+      linear-gradient(180deg,#0a0712,#06040c);
+    background-attachment:fixed;
+    min-height:100vh;min-height:100dvh;
+    overflow-x:hidden;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  /* звёздная текстура */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,.7), transparent),
+      radial-gradient(1px 1px at 70% 60%, rgba(255,255,255,.5), transparent),
+      radial-gradient(1.5px 1.5px at 40% 80%, rgba(243,212,136,.6), transparent),
+      radial-gradient(1px 1px at 85% 15%, rgba(255,255,255,.4), transparent),
+      radial-gradient(1px 1px at 10% 70%, rgba(255,255,255,.5), transparent);
+    opacity:.6;animation:twinkle 6s ease-in-out infinite alternate;
+  }
+  @keyframes twinkle{from{opacity:.35}to{opacity:.7}}
+
+  .app{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:14px 16px 96px;min-height:100dvh}
+
+  /* ============ HEADER ============ */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+  .who{display:flex;align-items:center;gap:10px;min-width:0}
+  .avatar{width:42px;height:42px;border-radius:50%;border:1.5px solid var(--gold);object-fit:cover;background:var(--panel-2);flex:0 0 auto}
+  .who .nm{font-family:'Cinzel';font-size:15px;color:var(--gold-bright);letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .who .sub{font-size:13px;color:var(--ink-dim);margin-top:-2px}
+  .wallet{display:flex;gap:8px;flex:0 0 auto}
+  .chip{display:flex;align-items:center;gap:5px;background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    border:1px solid var(--line);border-radius:999px;padding:6px 11px;font-family:'Cinzel';font-size:13px;color:var(--gold-bright)}
+  .chip b{font-weight:600}
+  .chip .ic{font-size:14px;filter:drop-shadow(0 0 6px rgba(243,212,136,.5))}
+
+  /* ============ TITLE ============ */
+  .brand{text-align:center;margin:6px 0 18px}
+  .brand h1{font-family:'Cinzel';font-weight:800;font-size:30px;margin:0;
+    background:linear-gradient(180deg,#fff,var(--gold) 60%,var(--gold-dim));
+    -webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:3px}
+  .brand p{margin:2px 0 0;color:var(--ink-dim);font-style:italic;font-size:15px;letter-spacing:.5px}
+
+  /* ============ CARD GRID / SCREENS ============ */
+  .screen{display:none;animation:fade .35s ease both}
+  .screen.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .panel{background:linear-gradient(180deg,var(--panel),var(--bg-2));border:1px solid var(--line);
+    border-radius:var(--r);padding:16px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .panel::after{content:"";position:absolute;inset:0;border-radius:var(--r);pointer-events:none;
+    background:radial-gradient(120% 60% at 50% -10%, rgba(217,178,91,.08), transparent 60%)}
+  .panel h2{font-family:'Cinzel';font-size:17px;margin:0 0 12px;color:var(--gold-bright);letter-spacing:1px}
+
+  .menu{display:grid;gap:12px}
+  .mbtn{display:flex;align-items:center;gap:14px;width:100%;text-align:left;cursor:pointer;
+    background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--line);
+    border-radius:16px;padding:16px;color:var(--ink);transition:.18s;font-family:inherit}
+  .mbtn:active{transform:scale(.98)}
+  .mbtn:hover{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+  .mbtn .gi{width:46px;height:46px;display:grid;place-items:center;border-radius:12px;flex:0 0 auto;
+    background:radial-gradient(circle at 30% 30%, #2c1f48, #150e26);border:1px solid var(--line);font-size:23px}
+  .mbtn .tt{font-family:'Cinzel';font-size:16px;color:var(--gold-bright);letter-spacing:.5px}
+  .mbtn .ds{font-size:14px;color:var(--ink-dim);margin-top:1px}
+
+  /* ============ SPREAD PICKER ============ */
+  .spread-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:6px}
+  .sp{aspect-ratio:1;border-radius:14px;cursor:pointer;display:grid;place-items:center;gap:2px;
+    background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--line);transition:.15s}
+  .sp:active{transform:scale(.94)}
+  .sp.sel{border-color:var(--gold);background:linear-gradient(180deg,#352243,#241636);box-shadow:0 0 18px -4px var(--gold)}
+  .sp .n{font-family:'Cinzel';font-size:22px;color:var(--gold-bright)}
+  .sp .l{font-size:11px;color:var(--ink-dim)}
+
+  .row{display:flex;gap:10px;margin-top:14px}
+  .btn{flex:1;cursor:pointer;font-family:'Cinzel';letter-spacing:1px;font-size:15px;
+    padding:14px;border-radius:14px;border:1px solid var(--gold-dim);color:#1a1208;
+    background:linear-gradient(180deg,var(--gold-bright),var(--gold));transition:.15s;font-weight:600}
+  .btn:active{transform:scale(.97)}
+  .btn.ghost{background:transparent;color:var(--gold-bright);border:1px solid var(--line)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+
+  /* ============ READING TABLE ============ */
+  .table{position:relative;min-height:230px;display:flex;flex-wrap:wrap;gap:10px;justify-content:center;
+    align-items:center;padding:18px 6px;perspective:1200px}
+  .deck-pile{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:5}
+
+  .tcard{width:84px;height:140px;position:relative;cursor:pointer;transform-style:preserve-3d;
+    transition:transform .55s cubic-bezier(.2,.7,.2,1), box-shadow .3s;border-radius:11px}
+  @media(max-width:380px){.tcard{width:72px;height:120px}}
+  .tcard .face{position:absolute;inset:0;border-radius:11px;backface-visibility:hidden;overflow:hidden;
+    border:1.5px solid var(--gold-dim);box-shadow:0 8px 22px -8px #000}
+  .tcard .back{transform:rotateY(0deg);
+    background:
+      repeating-linear-gradient(45deg,rgba(217,178,91,.10) 0 6px,transparent 6px 12px),
+      radial-gradient(circle at 50% 35%, #3a2a5e, #160e2a);
+    display:grid;place-items:center}
+  .tcard .back .sigil{font-size:34px;color:var(--gold);filter:drop-shadow(0 0 8px rgba(217,178,91,.6))}
+  .tcard .front{transform:rotateY(180deg);background:linear-gradient(160deg,#221634,#120b22);
+    display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:7px 5px}
+  .tcard.flipped{transform:rotateY(180deg)}
+  .tcard.sel .front{box-shadow:0 0 0 2px var(--gold-bright) inset,0 0 22px -2px var(--gold)}
+  .tcard.reversed .front .art{transform:rotate(180deg)}
+  .tcard .front .num{font-family:'Cinzel';font-size:11px;color:var(--gold-bright);letter-spacing:1px}
+  .tcard .front .art{font-size:34px;line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
+  .tcard .front img.art{width:100%;height:74px;object-fit:contain;filter:none}
+  .tcard .front .nm{font-family:'Cinzel';font-size:9px;text-align:center;color:var(--ink);line-height:1.1;min-height:22px;display:grid;place-items:center}
+  .tcard .corner{position:absolute;top:4px;left:5px;font-size:8px;color:var(--gold-dim)}
+
+  @keyframes deal{
+    0%{opacity:0;transform:translate(var(--fx),var(--fy)) rotate(var(--fr)) scale(.6)}
+    100%{opacity:1;transform:none}
+  }
+  .tcard.dealing{animation:deal .5s cubic-bezier(.2,.8,.25,1) both}
+
+  /* ============ INTERPRETATION BAR ============ */
+  .meaning{position:fixed;left:0;right:0;bottom:0;z-index:40;
+    background:linear-gradient(180deg,rgba(20,13,34,.96),rgba(8,5,16,.99));
+    border-top:1px solid var(--gold-dim);box-shadow:0 -16px 40px -10px #000;
+    transform:translateY(110%);transition:transform .35s cubic-bezier(.2,.7,.2,1);
+    padding:14px 16px calc(16px + env(safe-area-inset-bottom));backdrop-filter:blur(8px)}
+  .meaning.show{transform:none}
+  .meaning .mt{display:flex;align-items:center;gap:8px;font-family:'Cinzel';color:var(--gold-bright);font-size:16px}
+  .meaning .pos{font-size:13px;color:var(--rose);font-style:italic}
+  .meaning .body{margin-top:6px;font-size:16px;line-height:1.45;color:var(--ink)}
+  .meaning .rev{color:var(--rose);font-size:13px;font-style:italic;margin-top:4px}
+  .meaning .lock{display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;padding:6px 0}
+  .meaning .lock .lk{font-size:30px}
+  .meaning .lock p{margin:0;color:var(--ink-dim);font-size:15px}
+  .mclose{position:absolute;right:12px;top:10px;cursor:pointer;color:var(--ink-dim);font-size:20px;background:none;border:none}
+
+  /* ============ SHOP ============ */
+  .deck-list{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+  .deck-card{background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--line);
+    border-radius:16px;padding:12px;text-align:center;position:relative;overflow:hidden}
+  .deck-card .prev{height:96px;border-radius:10px;margin-bottom:8px;display:grid;place-items:center;font-size:40px;
+    background:radial-gradient(circle at 50% 30%,#2c1f48,#150e26);border:1px solid var(--line)}
+  .deck-card .dn{font-family:'Cinzel';font-size:14px;color:var(--gold-bright)}
+  .deck-card .px{font-size:13px;color:var(--ink-dim);margin:2px 0 8px;display:flex;gap:4px;justify-content:center;align-items:center}
+  .deck-card .owned{color:var(--ok);font-family:'Cinzel';font-size:13px;padding:8px}
+  .badge{position:absolute;top:8px;right:8px;font-size:10px;font-family:'Cinzel';background:var(--violet);
+    color:#fff;padding:3px 7px;border-radius:999px;letter-spacing:.5px}
+  .sbtn{width:100%;cursor:pointer;font-family:'Cinzel';font-size:13px;letter-spacing:.5px;padding:9px;border-radius:11px;
+    border:1px solid var(--gold-dim);color:#1a1208;background:linear-gradient(180deg,var(--gold-bright),var(--gold))}
+  .sbtn:active{transform:scale(.97)}
+  .sbtn.use{background:transparent;color:var(--gold-bright);border:1px solid var(--gold)}
+
+  /* ============ PROFILE / REFERRAL ============ */
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:6px}
+  .stat{background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--line);
+    border-radius:14px;padding:12px;text-align:center}
+  .stat .v{font-family:'Cinzel';font-size:22px;color:var(--gold-bright)}
+  .stat .k{font-size:12px;color:var(--ink-dim)}
+  .ref-box{margin-top:14px;background:rgba(123,92,255,.08);border:1px solid rgba(123,92,255,.3);border-radius:14px;padding:14px}
+  .ref-box p{margin:0 0 8px;font-size:14px;color:var(--ink-dim);line-height:1.4}
+  .ref-box .reward{color:var(--ok)}
+
+  /* ============ LANG SWITCH ============ */
+  .langs{display:flex;gap:6px}
+  .langs button{font-family:'Cinzel';font-size:12px;padding:5px 9px;border-radius:9px;cursor:pointer;
+    background:transparent;border:1px solid var(--line);color:var(--ink-dim)}
+  .langs button.on{border-color:var(--gold);color:var(--gold-bright)}
+
+  /* ============ BOTTOM NAV ============ */
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:center;
+    padding:0 0 env(safe-area-inset-bottom)}
+  .nav-in{display:flex;gap:4px;background:rgba(20,13,34,.92);backdrop-filter:blur(10px);
+    border:1px solid var(--line);border-bottom:none;border-radius:18px 18px 0 0;padding:8px 8px;max-width:520px;width:100%}
+  .nav button{flex:1;background:none;border:none;cursor:pointer;color:var(--ink-dim);font-family:'Cinzel';
+    font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;letter-spacing:.3px}
+  .nav button .ni{font-size:19px}
+  .nav button.on{color:var(--gold-bright)}
+
+  .toast{position:fixed;left:50%;top:18px;z-index:90;
+    background:var(--panel-2);border:1px solid var(--gold);color:var(--gold-bright);padding:11px 18px;
+    border-radius:12px;font-size:14px;box-shadow:var(--shadow);opacity:0;transition:.3s;font-family:'Cinzel';
+    transform:translate(-50%,-80px);white-space:nowrap}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  .empty{color:var(--ink-dim);text-align:center;padding:30px;font-style:italic}
+  .hint{font-size:13px;color:var(--ink-dim);font-style:italic;text-align:center;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TOP -->
+  <div class="topbar">
+    <div class="who">
+      <img class="avatar" id="avatar" alt="">
+      <div style="min-width:0">
+        <div class="nm" id="userName">—</div>
+        <div class="sub" id="userSub">@—</div>
+      </div>
+    </div>
+    <div class="wallet">
+      <div class="chip"><span class="ic">🪙</span><b id="coins">0</b></div>
+      <div class="chip"><span class="ic">⭐</span><b id="stars">0</b></div>
+    </div>
+  </div>
+
+  <div class="brand">
+    <h1>TELECARD</h1>
+    <p id="tagline">тиша між картами говорить</p>
+  </div>
+
+  <!-- ===== MENU ===== -->
+  <section class="screen active" id="scr-menu">
+    <div class="menu">
+      <button class="mbtn" onclick="go('reading')">
+        <span class="gi">🔮</span>
+        <span><span class="tt" data-i="m_read">Новий розклад</span><span class="ds" data-i="m_read_d">Обери від 4 до 10 карт</span></span>
+      </button>
+      <button class="mbtn" onclick="go('shop')">
+        <span class="gi">🃏</span>
+        <span><span class="tt" data-i="m_shop">Колоди</span><span class="ds" data-i="m_shop_d">Нові колоди та анімації</span></span>
+      </button>
+      <button class="mbtn" onclick="shareInvite()">
+        <span class="gi">🤝</span>
+        <span><span class="tt" data-i="m_share">Запросити друга</span><span class="ds" data-i="m_share_d">Колода або монети у подарунок</span></span>
+      </button>
+      <button class="mbtn" onclick="go('profile')">
+        <span class="gi">✦</span>
+        <span><span class="tt" data-i="m_prof">Профіль</span><span class="ds" data-i="m_prof_d">Статистика та реферали</span></span>
+      </button>
+    </div>
+    <div style="display:flex;justify-content:center;margin-top:18px">
+      <div class="langs">
+        <button data-l="uk" onclick="setLang('uk')">UA</button>
+        <button data-l="en" onclick="setLang('en')">EN</button>
+        <button data-l="ru" onclick="setLang('ru')">RU</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== READING SETUP ===== -->
+  <section class="screen" id="scr-reading">
+    <div class="panel">
+      <h2 data-i="r_pick">Скільки карт у розкладі?</h2>
+      <div class="spread-grid" id="spreadGrid"></div>
+      <div class="row">
+        <button class="btn ghost" onclick="go('menu')" data-i="back">Назад</button>
+        <button class="btn" id="dealBtn" onclick="startReading()" data-i="r_deal">Зробити розклад</button>
+      </div>
+      <div class="hint" data-i="r_free">Кожен розклад безкоштовний 🌙</div>
+    </div>
+  </section>
+
+  <!-- ===== TABLE ===== -->
+  <section class="screen" id="scr-table">
+    <div class="panel">
+      <h2 id="tableTitle">—</h2>
+      <div class="table" id="table"></div>
+      <div class="hint" id="tableHint" data-i="t_tap">Торкнись карти, щоб перевернути та дізнатись значення</div>
+      <div class="row">
+        <button class="btn ghost" onclick="go('reading')" data-i="t_again">Новий розклад</button>
+        <button class="btn" onclick="revealAll()" data-i="t_all">Відкрити всі</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SHOP ===== -->
+  <section class="screen" id="scr-shop">
+    <div class="panel">
+      <h2 data-i="s_title">Магазин колод</h2>
+      <div class="deck-list" id="deckList"></div>
+      <div class="hint" data-i="s_hint">Кожна колода — це свій стиль карт та анімація</div>
+      <div class="row"><button class="btn ghost" onclick="go('menu')" data-i="back">Назад</button></div>
+    </div>
+  </section>
+
+  <!-- ===== PROFILE ===== -->
+  <section class="screen" id="scr-profile">
+    <div class="panel">
+      <h2 data-i="p_title">Твій профіль</h2>
+      <div class="stat-grid">
+        <div class="stat"><div class="v" id="stReadings">0</div><div class="k" data-i="p_readings">Розкладів</div></div>
+        <div class="stat"><div class="v" id="stRefs">0</div><div class="k" data-i="p_refs">Рефералів</div></div>
+        <div class="stat"><div class="v" id="stDecks">1</div><div class="k" data-i="p_decks">Колод</div></div>
+      </div>
+      <div class="ref-box">
+        <p data-i="p_ref_text">Запрошуй друзів за своїм посиланням. За кожного, хто зайде вперше, ти отримуєш <span class="reward">100 🪙</span>, а за 3 друзів — безкоштовну колоду.</p>
+        <button class="sbtn" onclick="shareInvite()" data-i="p_ref_btn">Поділитися посиланням</button>
+      </div>
+      <div style="margin-top:14px">
+        <div class="panel" style="background:none;border:none;box-shadow:none;padding:0">
+          <h2 style="font-size:14px" data-i="p_ref_list">Мої реферали</h2>
+          <div id="refList"></div>
+        </div>
+      </div>
+      <div class="row"><button class="btn ghost" onclick="go('menu')" data-i="back">Назад</button></div>
+    </div>
+  </section>
+
+</div>
+
+<!-- INTERPRETATION BAR -->
+<div class="meaning" id="meaning">
+  <button class="mclose" onclick="hideMeaning()">✕</button>
+  <div id="meaningInner"></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="nav"><div class="nav-in">
+  <button data-nav="menu" class="on" onclick="go('menu')"><span class="ni">☰</span><span data-i="n_menu">Меню</span></button>
+  <button data-nav="reading" onclick="go('reading')"><span class="ni">🔮</span><span data-i="n_read">Розклад</span></button>
+  <button data-nav="shop" onclick="go('shop')"><span class="ni">🃏</span><span data-i="n_shop">Колоди</span></button>
+  <button data-nav="profile" onclick="go('profile')"><span class="ni">✦</span><span data-i="n_prof">Профіль</span></button>
+</div></nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====================================================================
+   КОНФИГ. Пусто = ДЕМО-режим (всё работает локально, без сервера).
+   После деплоя бэкенда впиши адрес сюда: */
+window.API_BASE = ""; // напр. "https://my-tarot-bot.up.railway.app"
+window.BOT_USERNAME = "your_bot"; // username бота без @ — для ссылок-приглашений
+// Публичный адрес хранилища колод (Supabase Storage). Картинки лежат как <DECKS_BASE>/<deckId>/<номер>.png
+window.DECKS_BASE = ""; // напр. "https://xxxx.supabase.co/storage/v1/object/public/decks"
+/* ==================================================================== */
+
+/* ---------- I18N ---------- */
+const I18N = {
+  uk:{
+    tagline:"тиша між картами говорить",
+    m_read:"Новий розклад", m_read_d:"Обери від 4 до 10 карт",
+    m_shop:"Колоди", m_shop_d:"Нові колоди та анімації",
+    m_share:"Запросити друга", m_share_d:"Колода або монети у подарунок",
+    m_prof:"Профіль", m_prof_d:"Статистика та реферали",
+    r_pick:"Скільки карт у розкладі?", r_deal:"Зробити розклад", r_free:"Кожен розклад безкоштовний 🌙",
+    back:"Назад",
+    t_tap:"Торкнись карти, щоб перевернути та дізнатись значення",
+    t_again:"Новий розклад", t_all:"Відкрити всі",
+    s_title:"Магазин колод", s_hint:"Кожна колода — це свій стиль карт та анімація",
+    p_title:"Твій профіль", p_readings:"Розкладів", p_refs:"Рефералів", p_decks:"Колод",
+    p_ref_text:'Запрошуй друзів за своїм посиланням. За кожного, хто зайде вперше, ти отримуєш <span class="reward">100 🪙</span>, а за 3 друзів — безкоштовну колоду.',
+    p_ref_btn:"Поділитися посиланням", p_ref_list:"Мої реферали",
+    n_menu:"Меню", n_read:"Розклад", n_shop:"Колоди", n_prof:"Профіль",
+    pos:["Минуле","Теперішнє","Майбутнє","Порада","Виклик","Ти","Оточення","Надії","Підсумок","Урок"],
+    reversed:"перевернута", upright:"пряма",
+    locked_title:"Тлумачення закрите", locked_p:"Розблокуй пояснення карт назавжди за 25 ⭐",
+    unlock_btn:"Розблокувати за 25 ⭐",
+    use_deck:"Використати", owned:"У наявності ✓", buy:"Купити",
+    no_refs:"Поки немає рефералів. Запроси першого!",
+    toast_unlocked:"Тлумачення розблоковано! 🔓",
+    toast_bought:"Колоду придбано! 🃏", toast_using:"Колода обрана",
+    toast_share:"Посилання скопійовано / надіслано",
+    toast_reward:"+100 🪙 за друга!", toast_nocoins:"Недостатньо коштів",
+    new_badge:"НОВА"
+  },
+  en:{
+    tagline:"the silence between cards speaks",
+    m_read:"New Reading", m_read_d:"Choose from 4 to 10 cards",
+    m_shop:"Decks", m_shop_d:"New decks & animations",
+    m_share:"Invite a Friend", m_share_d:"A deck or coins as a gift",
+    m_prof:"Profile", m_prof_d:"Stats & referrals",
+    r_pick:"How many cards in the spread?", r_deal:"Draw the spread", r_free:"Every reading is free 🌙",
+    back:"Back",
+    t_tap:"Tap a card to flip it and reveal its meaning",
+    t_again:"New reading", t_all:"Reveal all",
+    s_title:"Deck Shop", s_hint:"Each deck has its own card art & animation",
+    p_title:"Your Profile", p_readings:"Readings", p_refs:"Referrals", p_decks:"Decks",
+    p_ref_text:'Invite friends with your link. For each first-time join you get <span class="reward">100 🪙</span>, and for 3 friends — a free deck.',
+    p_ref_btn:"Share your link", p_ref_list:"My referrals",
+    n_menu:"Menu", n_read:"Reading", n_shop:"Decks", n_prof:"Profile",
+    pos:["Past","Present","Future","Advice","Challenge","You","Surroundings","Hopes","Outcome","Lesson"],
+    reversed:"reversed", upright:"upright",
+    locked_title:"Interpretation locked", locked_p:"Unlock card meanings forever for 25 ⭐",
+    unlock_btn:"Unlock for 25 ⭐",
+    use_deck:"Use", owned:"Owned ✓", buy:"Buy",
+    no_refs:"No referrals yet. Invite your first!",
+    toast_unlocked:"Interpretation unlocked! 🔓",
+    toast_bought:"Deck purchased! 🃏", toast_using:"Deck selected",
+    toast_share:"Link copied / shared",
+    toast_reward:"+100 🪙 for a friend!", toast_nocoins:"Not enough balance",
+    new_badge:"NEW"
+  },
+  ru:{
+    tagline:"тишина между картами говорит",
+    m_read:"Новый расклад", m_read_d:"Выбери от 4 до 10 карт",
+    m_shop:"Колоды", m_shop_d:"Новые колоды и анимации",
+    m_share:"Пригласить друга", m_share_d:"Колода или монеты в подарок",
+    m_prof:"Профиль", m_prof_d:"Статистика и рефералы",
+    r_pick:"Сколько карт в раскладе?", r_deal:"Сделать расклад", r_free:"Каждый расклад бесплатный 🌙",
+    back:"Назад",
+    t_tap:"Коснись карты, чтобы перевернуть и узнать значение",
+    t_again:"Новый расклад", t_all:"Открыть все",
+    s_title:"Магазин колод", s_hint:"У каждой колоды свой стиль карт и анимация",
+    p_title:"Твой профиль", p_readings:"Раскладов", p_refs:"Рефералов", p_decks:"Колод",
+    p_ref_text:'Приглашай друзей по своей ссылке. За каждого, кто зайдёт впервые, ты получаешь <span class="reward">100 🪙</span>, а за 3 друзей — бесплатную колоду.',
+    p_ref_btn:"Поделиться ссылкой", p_ref_list:"Мои рефералы",
+    n_menu:"Меню", n_read:"Расклад", n_shop:"Колоды", n_prof:"Профиль",
+    pos:["Прошлое","Настоящее","Будущее","Совет","Вызов","Ты","Окружение","Надежды","Итог","Урок"],
+    reversed:"перевёрнутая", upright:"прямая",
+    locked_title:"Толкование закрыто", locked_p:"Открой значения карт навсегда за 25 ⭐",
+    unlock_btn:"Открыть за 25 ⭐",
+    use_deck:"Использовать", owned:"В наличии ✓", buy:"Купить",
+    no_refs:"Пока нет рефералов. Пригласи первого!",
+    toast_unlocked:"Толкование открыто! 🔓",
+    toast_bought:"Колода куплена! 🃏", toast_using:"Колода выбрана",
+    toast_share:"Ссылка скопирована / отправлена",
+    toast_reward:"+100 🪙 за друга!", toast_nocoins:"Недостаточно средств",
+    new_badge:"НОВАЯ"
+  }
+};
+
+/* ---------- TAROT DATA (22 Старших аркана, 3 языка) ---------- */
+const CARDS = [
+  {n:"0",   art:"🃏", nm:{uk:"Дурень",en:"The Fool",ru:"Шут"},
+    up:{uk:"Початок, спонтанність, віра у шлях.",en:"New beginnings, spontaneity, a leap of faith.",ru:"Начало, спонтанность, прыжок в неизвестность."},
+    rev:{uk:"Необачність, страх кроку.",en:"Recklessness, fear of starting.",ru:"Безрассудство, страх сделать шаг."}},
+  {n:"I",   art:"🪄", nm:{uk:"Маг",en:"The Magician",ru:"Маг"},
+    up:{uk:"Воля, сила втілювати задумане.",en:"Willpower, manifestation, skill.",ru:"Воля, умение воплощать задуманное."},
+    rev:{uk:"Маніпуляція, нерозкритий потенціал.",en:"Manipulation, untapped potential.",ru:"Манипуляция, нераскрытый потенциал."}},
+  {n:"II",  art:"🌙", nm:{uk:"Жриця",en:"High Priestess",ru:"Жрица"},
+    up:{uk:"Інтуїція, таємниця, внутрішній голос.",en:"Intuition, mystery, inner voice.",ru:"Интуиция, тайна, внутренний голос."},
+    rev:{uk:"Ігнорування інтуїції, секрети.",en:"Ignored intuition, hidden secrets.",ru:"Игнор интуиции, скрытые секреты."}},
+  {n:"III", art:"👑", nm:{uk:"Імператриця",en:"The Empress",ru:"Императрица"},
+    up:{uk:"Достаток, турбота, творення.",en:"Abundance, nurturing, creativity.",ru:"Изобилие, забота, творчество."},
+    rev:{uk:"Застій, залежність, виснаження.",en:"Stagnation, dependence, burnout.",ru:"Застой, зависимость, истощение."}},
+  {n:"IV",  art:"🏛️", nm:{uk:"Імператор",en:"The Emperor",ru:"Император"},
+    up:{uk:"Структура, влада, стабільність.",en:"Structure, authority, stability.",ru:"Структура, власть, стабильность."},
+    rev:{uk:"Контроль, упертість, хаос.",en:"Over-control, rigidity, chaos.",ru:"Контроль, упрямство, хаос."}},
+  {n:"V",   art:"🗝️", nm:{uk:"Ієрофант",en:"The Hierophant",ru:"Иерофант"},
+    up:{uk:"Традиція, навчання, віра.",en:"Tradition, learning, belief.",ru:"Традиция, обучение, вера."},
+    rev:{uk:"Бунт, свій шлях, догма.",en:"Rebellion, own path, dogma.",ru:"Бунт, свой путь, догма."}},
+  {n:"VI",  art:"💞", nm:{uk:"Закохані",en:"The Lovers",ru:"Влюблённые"},
+    up:{uk:"Любов, вибір, гармонія.",en:"Love, a choice, harmony.",ru:"Любовь, выбор, гармония."},
+    rev:{uk:"Розлад, складний вибір.",en:"Disharmony, hard choice.",ru:"Разлад, трудный выбор."}},
+  {n:"VII", art:"🏇", nm:{uk:"Колісниця",en:"The Chariot",ru:"Колесница"},
+    up:{uk:"Перемога, рух уперед, контроль.",en:"Victory, drive, control.",ru:"Победа, движение вперёд, контроль."},
+    rev:{uk:"Втрата напрямку, агресія.",en:"Loss of direction, aggression.",ru:"Потеря направления, агрессия."}},
+  {n:"VIII",art:"🦁", nm:{uk:"Сила",en:"Strength",ru:"Сила"},
+    up:{uk:"Мужність, ніжна сила, терпіння.",en:"Courage, inner strength, patience.",ru:"Мужество, внутренняя сила, терпение."},
+    rev:{uk:"Сумнів, слабкість, тиск.",en:"Self-doubt, weakness, pressure.",ru:"Сомнение, слабость, давление."}},
+  {n:"IX",  art:"🏮", nm:{uk:"Самітник",en:"The Hermit",ru:"Отшельник"},
+    up:{uk:"Самопізнання, пошук, спокій.",en:"Soul-searching, solitude, guidance.",ru:"Поиск себя, уединение, мудрость."},
+    rev:{uk:"Ізоляція, самотність.",en:"Isolation, loneliness.",ru:"Изоляция, одиночество."}},
+  {n:"X",   art:"🎡", nm:{uk:"Колесо Фортуни",en:"Wheel of Fortune",ru:"Колесо Фортуны"},
+    up:{uk:"Доля, поворот, удача.",en:"Fate, a turning point, luck.",ru:"Судьба, поворот, удача."},
+    rev:{uk:"Невдача, опір змінам.",en:"Bad luck, resisting change.",ru:"Неудача, сопротивление переменам."}},
+  {n:"XI",  art:"⚖️", nm:{uk:"Правосуддя",en:"Justice",ru:"Справедливость"},
+    up:{uk:"Чесність, баланс, наслідки.",en:"Fairness, balance, consequences.",ru:"Честность, баланс, последствия."},
+    rev:{uk:"Несправедливість, ухиляння.",en:"Unfairness, dishonesty.",ru:"Несправедливость, уклонение."}},
+  {n:"XII", art:"🙃", nm:{uk:"Повішений",en:"The Hanged Man",ru:"Повешенный"},
+    up:{uk:"Пауза, новий погляд, жертва.",en:"Pause, new perspective, surrender.",ru:"Пауза, новый взгляд, жертва."},
+    rev:{uk:"Застрягання, марна жертва.",en:"Stalling, useless sacrifice.",ru:"Застревание, напрасная жертва."}},
+  {n:"XIII",art:"🦋", nm:{uk:"Смерть",en:"Death",ru:"Смерть"},
+    up:{uk:"Завершення, трансформація, нове.",en:"Endings, transformation, renewal.",ru:"Завершение, трансформация, обновление."},
+    rev:{uk:"Опір змінам, застій.",en:"Resistance to change, stagnation.",ru:"Сопротивление переменам, застой."}},
+  {n:"XIV", art:"🏺", nm:{uk:"Поміркованість",en:"Temperance",ru:"Умеренность"},
+    up:{uk:"Баланс, терпіння, гармонія.",en:"Balance, patience, blending.",ru:"Баланс, терпение, гармония."},
+    rev:{uk:"Надмір, дисбаланс.",en:"Excess, imbalance.",ru:"Перебор, дисбаланс."}},
+  {n:"XV",  art:"⛓️", nm:{uk:"Диявол",en:"The Devil",ru:"Дьявол"},
+    up:{uk:"Залежність, спокуса, тінь.",en:"Bondage, temptation, shadow.",ru:"Зависимость, соблазн, тень."},
+    rev:{uk:"Звільнення, повернення сили.",en:"Release, reclaiming power.",ru:"Освобождение, возврат силы."}},
+  {n:"XVI", art:"🗼", nm:{uk:"Вежа",en:"The Tower",ru:"Башня"},
+    up:{uk:"Раптова зміна, прозріння, злам.",en:"Sudden upheaval, revelation.",ru:"Внезапная перемена, прозрение."},
+    rev:{uk:"Уникнення кризи, страх.",en:"Avoiding disaster, fear of change.",ru:"Избегание кризиса, страх."}},
+  {n:"XVII",art:"⭐", nm:{uk:"Зірка",en:"The Star",ru:"Звезда"},
+    up:{uk:"Надія, віра, оновлення.",en:"Hope, faith, renewal.",ru:"Надежда, вера, обновление."},
+    rev:{uk:"Зневіра, втрата віри.",en:"Despair, loss of faith.",ru:"Уныние, потеря веры."}},
+  {n:"XVIII",art:"🌕", nm:{uk:"Місяць",en:"The Moon",ru:"Луна"},
+    up:{uk:"Ілюзії, страхи, підсвідоме.",en:"Illusion, fears, the subconscious.",ru:"Иллюзии, страхи, подсознание."},
+    rev:{uk:"Ясність, розсіювання страхів.",en:"Clarity, fears fading.",ru:"Ясность, отступление страхов."}},
+  {n:"XIX", art:"☀️", nm:{uk:"Сонце",en:"The Sun",ru:"Солнце"},
+    up:{uk:"Радість, успіх, життєва сила.",en:"Joy, success, vitality.",ru:"Радость, успех, жизненная сила."},
+    rev:{uk:"Тимчасова хмарність, сумнів.",en:"Temporary clouds, doubt.",ru:"Временная тень, сомнение."}},
+  {n:"XX",  art:"📯", nm:{uk:"Суд",en:"Judgement",ru:"Суд"},
+    up:{uk:"Пробудження, поклик, прощення.",en:"Awakening, a calling, absolution.",ru:"Пробуждение, зов, прощение."},
+    rev:{uk:"Сумніви, самокритика.",en:"Self-doubt, harsh judgement.",ru:"Сомнения, самокритика."}},
+  {n:"XXI", art:"🌍", nm:{uk:"Світ",en:"The World",ru:"Мир"},
+    up:{uk:"Завершення, цілісність, успіх.",en:"Completion, wholeness, success.",ru:"Завершение, целостность, успех."},
+    rev:{uk:"Незавершеність, затримка.",en:"Incompletion, delay.",ru:"Незавершённость, задержка."}}
+];
+
+/* ---------- DECKS (демо-каталог; реальные данные придут с бэка) ---------- */
+const DECKS = [
+  {id:"classic", name:{uk:"Класична",en:"Classic",ru:"Классическая"}, price:0, sigil:"✦", isNew:false},
+  {id:"celestial", name:{uk:"Небесна",en:"Celestial",ru:"Небесная"}, price:25, sigil:"🌌", isNew:false},
+  {id:"golden", name:{uk:"Золота",en:"Golden",ru:"Золотая"}, price:25, sigil:"🌟", isNew:false},
+  {id:"noir", name:{uk:"Нуар",en:"Noir",ru:"Нуар"}, price:50, sigil:"🌑", isNew:true},
+  {id:"botanica", name:{uk:"Ботаніка",en:"Botanica",ru:"Ботаника"}, price:50, sigil:"🌿", isNew:false},
+  {id:"royal", name:{uk:"Королівська",en:"Royal",ru:"Королевская"}, price:100, sigil:"👑", isNew:true}
+];
+
+/* ---------- STATE ---------- */
+let lang = "uk";
+let spreadSize = 5;
+let currentSpread = [];
+const isTG = !!(window.Telegram && Telegram.WebApp && Telegram.WebApp.initData);
+let state = {
+  coins: 50, stars: 0, readings: 0,
+  interpretUnlocked: false,
+  ownedDecks: ["classic"], activeDeck: "classic",
+  referrals: []
+};
+
+/* ---------- HELPERS ---------- */
+const $ = s => document.querySelector(s);
+const t = k => (I18N[lang][k] ?? k);
+function toast(msg){const el=$("#toast");el.textContent=msg;el.classList.add("show");clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove("show"),2200);}
+function api(path,body){
+  if(!window.API_BASE) return Promise.reject("demo");
+  return fetch(window.API_BASE+path,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({initData:(isTG?Telegram.WebApp.initData:""),...body})}).then(r=>r.json());
+}
+
+/* ---------- INIT ---------- */
+function init(){
+  if(isTG){
+    Telegram.WebApp.ready(); Telegram.WebApp.expand();
+    try{Telegram.WebApp.setHeaderColor("#0a0712"); Telegram.WebApp.setBackgroundColor("#0a0712");}catch(e){}
+    const u = Telegram.WebApp.initDataUnsafe.user || {};
+    $("#userName").textContent = [u.first_name,u.last_name].filter(Boolean).join(" ") || "Guest";
+    $("#userSub").textContent = u.username ? "@"+u.username : ("id "+(u.id||""));
+    if(u.photo_url) $("#avatar").src=u.photo_url; else $("#avatar").src=defaultAvatar(u.first_name||"T");
+    const lc=(Telegram.WebApp.initDataUnsafe.user||{}).language_code||"uk";
+    lang = ["uk","en","ru"].includes(lc)?lc:"uk";
+    // загрузить состояние с сервера
+    loadServerState();
+  }else{
+    // ДЕМО профиль
+    $("#userName").textContent = "Demo Seeker";
+    $("#userSub").textContent = "@demo_user";
+    $("#avatar").src = defaultAvatar("D");
+  }
+  buildSpreadGrid(); buildDeckList();
+  setLang(lang);
+  renderProfile();
+}
+
+function defaultAvatar(letter){
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='84' height='84'><rect width='84' height='84' fill='%23241638'/><text x='50%' y='54%' font-family='Cinzel,serif' font-size='38' fill='%23d9b25b' text-anchor='middle' dominant-baseline='middle'>${letter.toUpperCase()}</text></svg>`;
+  return "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg).replace(/'/g,"%27");
+}
+
+async function loadServerState(){
+  try{
+    const startParam = (Telegram.WebApp.initDataUnsafe.start_param)||"";
+    const d = await api("/api/auth",{ref:startParam});
+    if(d && d.ok){
+      state.coins=d.coins; state.stars=d.stars; state.readings=d.readings;
+      state.interpretUnlocked=d.interpretUnlocked; state.ownedDecks=d.ownedDecks||["classic"];
+      state.activeDeck=d.activeDeck||"classic"; state.referrals=d.referrals||[];
+      renderWallet(); renderProfile(); buildDeckList();
+    }
+  }catch(e){/* demo */}
+  renderWallet();
+}
+
+/* ---------- LANG ---------- */
+function setLang(l){
+  lang=l;
+  document.querySelectorAll("[data-i]").forEach(el=>{
+    const k=el.getAttribute("data-i"); const v=I18N[l][k];
+    if(v!==undefined) el.innerHTML=v;
+  });
+  $("#tagline").textContent=t("tagline");
+  document.querySelectorAll(".langs button").forEach(b=>b.classList.toggle("on",b.dataset.l===l));
+  document.documentElement.lang=l;
+  buildDeckList();
+  renderWallet();
+}
+
+/* ---------- WALLET / NAV ---------- */
+function renderWallet(){ $("#coins").textContent=state.coins; $("#stars").textContent=state.stars; }
+function go(scr){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  $("#scr-"+scr).classList.add("active");
+  document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("on",b.dataset.nav===scr));
+  hideMeaning();
+  window.scrollTo(0,0);
+  if(isTG){ scr==="menu"?Telegram.WebApp.BackButton.hide():Telegram.WebApp.BackButton.show(); }
+}
+
+/* ---------- SPREAD SETUP ---------- */
+function buildSpreadGrid(){
+  const g=$("#spreadGrid"); g.innerHTML="";
+  for(let n=4;n<=10;n++){
+    const d=document.createElement("div");
+    d.className="sp"+(n===spreadSize?" sel":"");
+    d.innerHTML=`<div class="n">${n}</div><div class="l">cards</div>`;
+    d.onclick=()=>{spreadSize=n;buildSpreadGrid();};
+    g.appendChild(d);
+  }
+}
+
+/* ---------- READING ---------- */
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function startReading(){
+  const pick=shuffle(CARDS).slice(0,spreadSize).map(c=>({card:c,reversed:Math.random()<0.35,flipped:false}));
+  currentSpread=pick;
+  go("table");
+  $("#tableTitle").textContent = spreadSize+" "+(lang==="en"?"cards":lang==="ru"?"карт":"карт");
+  const tbl=$("#table"); tbl.innerHTML="";
+  pick.forEach((it,i)=>{
+    const el=document.createElement("div");
+    el.className="tcard dealing"+(it.reversed?" reversed":"");
+    el.style.setProperty("--fx",(Math.random()*120-60)+"px");
+    el.style.setProperty("--fy","-160px");
+    el.style.setProperty("--fr",(Math.random()*40-20)+"deg");
+    el.style.animationDelay=(i*0.09)+"s";
+    const c=it.card;
+    el.innerHTML=`
+      <div class="face back"><span class="sigil">${activeSigil()}</span></div>
+      <div class="face front">
+        <span class="corner">${c.n}</span>
+        <span class="num">${c.n}</span>
+        ${cardArt(c)}
+        <span class="nm">${c.nm[lang]}</span>
+      </div>`;
+    el.onclick=()=>flipCard(i,el);
+    tbl.appendChild(el);
+  });
+  state.readings++; renderProfile();
+  if(isTG){ try{Telegram.WebApp.HapticFeedback.impactOccurred("medium");}catch(e){} }
+  api("/api/reading",{size:spreadSize}).catch(()=>{});
+}
+
+function activeSigil(){ const d=DECKS.find(x=>x.id===state.activeDeck); return d?d.sigil:"✦"; }
+function cardArt(c){
+  // Если активна купленная колода и задан адрес хранилища — показываем PNG, иначе emoji-арт.
+  if(state.activeDeck!=="classic" && window.DECKS_BASE){
+    const url = `${window.DECKS_BASE}/${state.activeDeck}/${c.n}.png`;
+    return `<img class="art" src="${url}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'art',textContent:'${c.art}'}))">`;
+  }
+  return `<span class="art">${c.art}</span>`;
+}
+
+function flipCard(i,el){
+  const it=currentSpread[i];
+  if(!it.flipped){
+    it.flipped=true; el.classList.add("flipped");
+    if(isTG){try{Telegram.WebApp.HapticFeedback.impactOccurred("light");}catch(e){}}
+  }
+  // выбрать карту
+  document.querySelectorAll(".tcard").forEach(c=>c.classList.remove("sel"));
+  el.classList.add("sel");
+  showMeaning(i);
+}
+
+function revealAll(){
+  document.querySelectorAll("#table .tcard").forEach((el,i)=>{
+    setTimeout(()=>{currentSpread[i].flipped=true;el.classList.add("flipped");},i*70);
+  });
+}
+
+/* ---------- INTERPRETATION BAR ---------- */
+function showMeaning(i){
+  const it=currentSpread[i], c=it.card, m=$("#meaningInner");
+  if(!state.interpretUnlocked){
+    m.innerHTML=`<div class="lock"><div class="lk">🔒</div>
+      <div class="mt">${t("locked_title")}</div>
+      <p>${t("locked_p")}</p>
+      <button class="btn" style="max-width:240px" onclick="unlockInterpretation()">${t("unlock_btn")}</button></div>`;
+  }else{
+    const posArr=t("pos"); const pos=posArr[i]||"";
+    const txt = it.reversed ? c.rev[lang] : c.up[lang];
+    m.innerHTML=`
+      <div class="mt">${c.art} ${c.nm[lang]} <span class="pos">· ${pos}</span></div>
+      <div class="body">${txt}</div>
+      <div class="rev">${it.reversed?("↺ "+t("reversed")):("↑ "+t("upright"))}</div>`;
+  }
+  $("#meaning").classList.add("show");
+}
+function hideMeaning(){ $("#meaning").classList.remove("show"); }
+
+/* ---------- PURCHASES (Stars) ---------- */
+function unlockInterpretation(){
+  buyStars("unlock_interpretation", ()=>{ state.interpretUnlocked=true; toast(t("toast_unlocked")); showMeaningCurrent(); });
+}
+function showMeaningCurrent(){
+  const sel=[...document.querySelectorAll(".tcard")].findIndex(e=>e.classList.contains("sel"));
+  if(sel>=0) showMeaning(sel);
+}
+
+function buyDeck(id){
+  const d=DECKS.find(x=>x.id===id); if(!d) return;
+  if(state.ownedDecks.includes(id)){ state.activeDeck=id; buildDeckList(); toast(t("toast_using")); return; }
+  buyStars("deck:"+id, ()=>{
+    state.ownedDecks.push(id); state.activeDeck=id; buildDeckList(); renderProfile();
+    toast(t("toast_bought"));
+  }, d.price);
+}
+
+/* Универсальная покупка через Stars. В демо — мгновенно. В TG — через инвойс бэкенда. */
+function buyStars(item, onSuccess, priceOverride){
+  if(!window.API_BASE){ // ДЕМО — без оплаты
+    onSuccess(); return;
+  }
+  api("/api/invoice",{item}).then(d=>{
+    if(d && d.ok && d.link){
+      Telegram.WebApp.openInvoice(d.link, status=>{
+        if(status==="paid"){ loadServerState().then(()=>onSuccess()); }
+      });
+    }else{ toast("Error"); }
+  }).catch(()=>toast("Error"));
+}
+
+/* ---------- SHOP ---------- */
+function buildDeckList(){
+  const wrap=$("#deckList"); if(!wrap) return; wrap.innerHTML="";
+  DECKS.forEach(d=>{
+    const owned=state.ownedDecks.includes(d.id);
+    const active=state.activeDeck===d.id;
+    const el=document.createElement("div"); el.className="deck-card";
+    let btn;
+    if(active) btn=`<div class="owned">${t("owned")}</div>`;
+    else if(owned) btn=`<button class="sbtn use" onclick="buyDeck('${d.id}')">${t("use_deck")}</button>`;
+    else btn=`<button class="sbtn" onclick="buyDeck('${d.id}')">${t("buy")} · ${d.price} ⭐</button>`;
+    el.innerHTML=`
+      ${d.isNew && !owned?`<span class="badge">${t("new_badge")}</span>`:""}
+      <div class="prev">${d.sigil}</div>
+      <div class="dn">${d.name[lang]}</div>
+      <div class="px">${d.price===0?(lang==="en"?"Free":lang==="ru"?"Бесплатно":"Безкоштовно"):d.price+" ⭐"}</div>
+      ${btn}`;
+    wrap.appendChild(el);
+  });
+}
+
+/* ---------- REFERRALS / SHARE ---------- */
+function refLink(){
+  const id = isTG ? (Telegram.WebApp.initDataUnsafe.user||{}).id : "demo";
+  return `https://t.me/${window.BOT_USERNAME}?start=ref_${id}`;
+}
+function shareInvite(){
+  const link=refLink();
+  const text = lang==="en" ? "I'm reading tarot here — join me and get a bonus 🔮"
+            : lang==="ru" ? "Гадаю на таро здесь — заходи и получи бонус 🔮"
+            : "Гадаю на таро тут — приєднуйся та отримай бонус 🔮";
+  if(isTG){
+    const url="https://t.me/share/url?url="+encodeURIComponent(link)+"&text="+encodeURIComponent(text);
+    Telegram.WebApp.openTelegramLink(url);
+  }else{
+    if(navigator.share){ navigator.share({title:"TeleCard",text,url:link}).catch(()=>{}); }
+    else{ navigator.clipboard?.writeText(link+"\n"+text); toast(t("toast_share")); }
+  }
+}
+
+/* ---------- PROFILE ---------- */
+function renderProfile(){
+  $("#stReadings").textContent=state.readings;
+  $("#stRefs").textContent=state.referrals.length;
+  $("#stDecks").textContent=state.ownedDecks.length;
+  const rl=$("#refList");
+  if(!state.referrals.length){ rl.innerHTML=`<div class="empty">${t("no_refs")}</div>`; }
+  else{
+    rl.innerHTML=state.referrals.map(r=>`<div class="mbtn" style="cursor:default;padding:10px">
+      <span class="gi" style="width:36px;height:36px;font-size:16px">👤</span>
+      <span><span class="tt" style="font-size:14px">${r.name||("id "+r.id)}</span></span></div>`).join("");
+  }
+}
+
+/* TG BackButton */
+if(isTG){ Telegram.WebApp.BackButton.onClick(()=>{
+  const active=document.querySelector(".screen.active").id.replace("scr-","");
+  if(active==="table") go("reading"); else go("menu");
+}); }
+
+init();
+</script>
+</body>
+</html>
